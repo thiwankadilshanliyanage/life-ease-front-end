@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -9,93 +9,138 @@ import {
   Drawer,
   List,
   ListItem,
-  ListItemText
+  ListItemText,
+  Slide
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import { Link as RouterLink } from 'react-router-dom';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
 
-const Navbar = ({ onAuthOpen }) => {
+const Navbar = ({ onAuthOpen, onToggleTheme, darkMode, user, onLogout }) => {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [elevate, setElevate] = useState(false);
+  const [showNavbar, setShowNavbar] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const navigate = useNavigate();
 
-  const toggleDrawer = () => {
-    setDrawerOpen(!drawerOpen);
-  };
+  const toggleDrawer = () => setDrawerOpen(!drawerOpen);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentY = window.scrollY;
+      if (currentY > lastScrollY && currentY > 100) setShowNavbar(false);
+      else setShowNavbar(true);
+      setElevate(currentY > 50);
+      setLastScrollY(currentY);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY]);
 
   return (
     <>
-      <AppBar
-        position="fixed"
-        elevation={0}
-        sx={{
-          bgcolor: 'rgba(0, 0, 0, 0.5)'
-        }}
+      <Slide appear={false} direction="down" in={showNavbar}>
+        <AppBar
+          position="fixed"
+          elevation={elevate ? 4 : 0}
+          sx={{
+            bgcolor: 'rgba(0, 0, 0, 0.5)',
+            height: elevate ? 56 : 64,
+            transition: 'all 0.3s ease'
+          }}
+        >
+          <Toolbar sx={{ minHeight: elevate ? 56 : 64 }}>
+            <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
+              <Box
+                component="img"
+                src={logo}
+                alt="LifeEase Japan"
+                sx={{
+                  height: elevate ? 35 : 40,
+                  width: elevate ? 35 : 40,
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  marginRight: 1,
+                  transition: 'all 0.3s ease',
+                  cursor: 'pointer',
+                  '&:hover': { transform: 'scale(1.1)' }
+                }}
+              />
+              <Typography
+                variant="h6"
+                component={RouterLink}
+                to="/"
+                sx={{
+                  textDecoration: 'none',
+                  color: 'white',
+                  fontWeight: 'bold'
+                }}
+              >
+                LifeEase Japan
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: { xs: 'none', sm: 'flex' }, gap: 1 }}>
+              {user ? (
+                <Button
+                  onClick={() => navigate('/dashboard')}
+                  sx={{ color: 'white' }}
+                  startIcon={<AccountCircleIcon />}
+                >
+                  {user.name}
+                </Button>
+              ) : (
+                <Button onClick={onAuthOpen} sx={{ color: 'white' }}>
+                  Login
+                </Button>
+              )}
+
+              {user && (
+                <Button onClick={onLogout} sx={{ color: 'white' }}>
+                  Logout
+                </Button>
+              )}
+
+              <IconButton onClick={onToggleTheme} sx={{ color: 'white' }}>
+                {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
+              </IconButton>
+            </Box>
+
+            <IconButton
+              sx={{ display: { xs: 'block', sm: 'none' }, color: 'white' }}
+              onClick={toggleDrawer}
+            >
+              <MenuIcon />
+            </IconButton>
+          </Toolbar>
+        </AppBar>
+      </Slide>
+
+      <Drawer
+        anchor="right"
+        open={drawerOpen}
+        onClose={toggleDrawer}
+        transitionDuration={300}
       >
-        <Toolbar>
-          <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
-            <img
-              src={logo}
-              alt="LifeEase Japan"
-              style={{
-                height: 40,
-                width: 40,
-                borderRadius: '50%',
-                objectFit: 'cover',
-                marginRight: 8
-              }}
-            />
-            <Typography
-              variant="h6"
-              component={RouterLink}
-              to="/"
-              sx={{
-                textDecoration: 'none',
-                color: 'white',
-                fontWeight: 'bold'
-              }}
-            >
-              LifeEase Japan
-            </Typography>
-          </Box>
-
-          {/* Desktop buttons */}
-          <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-            <Button
-              color="inherit"
-              onClick={() => onAuthOpen('login')}
-              sx={{ color: 'white' }}
-            >
-              Login
-            </Button>
-            <Button
-              color="inherit"
-              onClick={() => onAuthOpen('register')}
-              sx={{ color: 'white' }}
-            >
-              Register
-            </Button>
-          </Box>
-
-          {/* Mobile hamburger */}
-          <IconButton
-            sx={{ display: { xs: 'block', sm: 'none' }, color: 'white' }}
-            onClick={toggleDrawer}
-          >
-            <MenuIcon />
-          </IconButton>
-        </Toolbar>
-      </AppBar>
-
-      {/* Drawer for mobile */}
-      <Drawer anchor="right" open={drawerOpen} onClose={toggleDrawer}>
         <Box sx={{ width: 200 }} role="presentation" onClick={toggleDrawer}>
           <List>
-            <ListItem button onClick={() => onAuthOpen('login')}>
-              <ListItemText primary="Login" />
-            </ListItem>
-            <ListItem button onClick={() => onAuthOpen('register')}>
-              <ListItemText primary="Register" />
-            </ListItem>
+            {user ? (
+              <>
+                <ListItem button onClick={() => navigate('/dashboard')}>
+                  <ListItemText primary={user.name} />
+                </ListItem>
+                <ListItem button onClick={onLogout}>
+                  <ListItemText primary="Logout" />
+                </ListItem>
+              </>
+            ) : (
+              <ListItem button onClick={onAuthOpen}>
+                <ListItemText primary="Login" />
+              </ListItem>
+            )}
           </List>
         </Box>
       </Drawer>
