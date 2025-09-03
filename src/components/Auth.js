@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -27,6 +27,7 @@ const AuthPage = ({ open = true, onClose, onLogin, mode = 'login' }) => {
   const theme = useTheme();
 
   const [isLogin, setIsLogin] = useState(mode === 'login');
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -37,8 +38,13 @@ const AuthPage = ({ open = true, onClose, onLogin, mode = 'login' }) => {
   const [message, setMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
+  // keep internal state in sync if parent passes a different mode
+  useEffect(() => {
+    setIsLogin(mode === 'login');
+  }, [mode]);
+
   const toggleMode = () => {
-    setIsLogin(!isLogin);
+    setIsLogin((prev) => !prev);
     setFormData({
       name: '',
       email: '',
@@ -47,89 +53,92 @@ const AuthPage = ({ open = true, onClose, onLogin, mode = 'login' }) => {
       isServiceProvider: false
     });
     setMessage('');
+    setShowPassword(false);
   };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
+    setFormData((s) => ({ ...s, [name]: type === 'checkbox' ? checked : value }));
   };
 
- const handleSubmit = async (e) => {
-  e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  if (!formData.email) {
-    setMessage('Email is required.');
-    return;
-  }
-
-  if (!/\S+@\S+\.\S+/.test(formData.email)) {
-    setMessage('Invalid email format.');
-    return;
-  }
-
-  if (formData.password.length < 6) {
-    setMessage('Password must be at least 6 characters.');
-    return;
-  }
-
-  if (!isLogin && !formData.name.trim()) {
-    setMessage('Name is required for registration.');
-    return;
-  }
-
-  if (!isLogin && formData.password !== formData.confirmPassword) {
-    setMessage('Passwords do not match.');
-    return;
-  }
-
-  try {
-    if (isLogin) {
-      const res = await loginUser({
-        email: formData.email,
-        password: formData.password
-      });
-
-      const userData = {
-        name: res.data.user.name,
-        email: res.data.user.email,
-        avatar: res.data.user.avatar,
-        role: res.data.user.role,  // ✅ include role
-        token: res.data.token
-      };
-
-      localStorage.setItem('token', userData.token);
-      localStorage.setItem('user', JSON.stringify(userData));
-      onClose?.();
-      onLogin?.(userData);
-
-      // ✅ Redirect based on role
-      if (userData.role === 'admin') {
-        window.location.href = '/admin';
-      } else {
-        window.location.href = '/dashboard';
-      }
-
-    } else {
-      const res = await registerUser({
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        isServiceProvider: formData.isServiceProvider
-      });
-
-      setMessage(res.data.message || 'Registered! Check your email.');
-      onClose?.();
+    // simple validations
+    if (!formData.email) {
+      setMessage('Email is required.');
+      return;
     }
-  } catch (err) {
-    setMessage(err.response?.data?.message || 'Something went wrong.');
-  }
-};
+    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      setMessage('Invalid email format.');
+      return;
+    }
+    if (formData.password.length < 6) {
+      setMessage('Password must be at least 6 characters.');
+      return;
+    }
+    if (!isLogin && !formData.name.trim()) {
+      setMessage('Name is required for registration.');
+      return;
+    }
+    if (!isLogin && formData.password !== formData.confirmPassword) {
+      setMessage('Passwords do not match.');
+      return;
+    }
 
+    try {
+      setSubmitting(true);
+      setMessage('');
+
+      if (isLogin) {
+        const res = await loginUser({
+          email: formData.email,
+          password: formData.password
+        });
+
+        const userData = {
+          name: res.data.user.name,
+          email: res.data.user.email,
+          avatar: res.data.user.avatar,
+          role: res.data.user.role, // important
+          token: res.data.token
+        };
+
+        // persist + lift state
+        localStorage.setItem('token', userData.token);
+        localStorage.setItem('user', JSON.stringify(userData));
+        onClose?.();
+        onLogin?.(userData);
+
+        // redirect by role
+        if (userData.role === 'admin') {
+          window.location.href = '/admin';
+        } else {
+          window.location.href = '/dashboard';
+        }
+      } else {
+        // register
+        const res = await registerUser({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          isServiceProvider: formData.isServiceProvider // backend maps this to role
+        });
+
+        setMessage(res.data.message || 'Registered! Check your email to verify.');
+        onClose?.();
+      }
+    } catch (err) {
+      setMessage(err.response?.data?.message || 'Something went wrong.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <Backdrop
       sx={{
-        zIndex: (theme) => theme.zIndex.drawer + 1,
+        zIndex: (t) => t.zIndex.drawer + 1,
         bgcolor: 'rgba(0,0,0,0.6)',
         backdropFilter: 'blur(3px)'
       }}
@@ -148,7 +157,7 @@ const AuthPage = ({ open = true, onClose, onLogin, mode = 'login' }) => {
             color: theme.palette.text.primary,
             position: 'relative'
           }}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()} // keep clicks inside the card from closing
         >
           <IconButton
             onClick={onClose}
@@ -158,6 +167,7 @@ const AuthPage = ({ open = true, onClose, onLogin, mode = 'login' }) => {
               left: 8,
               color: theme.palette.grey[500]
             }}
+            aria-label="Close"
           >
             <Close />
           </IconButton>
@@ -221,7 +231,11 @@ const AuthPage = ({ open = true, onClose, onLogin, mode = 'login' }) => {
                 ),
                 endAdornment: (
                   <InputAdornment position="end">
-                    <IconButton onClick={() => setShowPassword((prev) => !prev)}>
+                    <IconButton
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      edge="end"
+                    >
                       {showPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
                   </InputAdornment>
@@ -267,9 +281,10 @@ const AuthPage = ({ open = true, onClose, onLogin, mode = 'login' }) => {
               type="submit"
               variant="contained"
               fullWidth
+              disabled={submitting}
               sx={{ mt: 2, py: 1.5 }}
             >
-              {isLogin ? 'Login' : 'Register'}
+              {submitting ? (isLogin ? 'Logging in…' : 'Registering…') : isLogin ? 'Login' : 'Register'}
             </Button>
           </form>
 

@@ -84,23 +84,35 @@ const Navbar = ({ onAuthOpen, onToggleTheme, darkMode, user, onLogout }) => {
             </Box>
 
             <Box sx={{ display: { xs: 'none', sm: 'flex' }, gap: 1 }}>
-              {user ? (
-                <Button
-                  onClick={() => navigate('/dashboard')}
-                  sx={{ color: 'white' }}
-                  startIcon={<AccountCircleIcon />}
-                >
-                  {user.name}
-                </Button>
+              {/* Admin sees only "Admin" label (no profile button) */}
+              {user?.role === 'admin' ? (
+                <>
+                  <Button
+                    onClick={() => navigate('/admin')}
+                    sx={{ color: 'white', fontWeight: 'bold' }}
+                  >
+                    Admin
+                  </Button>
+                  <Button onClick={onLogout} sx={{ color: 'white' }}>
+                    Logout
+                  </Button>
+                </>
+              ) : user ? (
+                <>
+                  <Button
+                    onClick={() => navigate('/dashboard')}
+                    sx={{ color: 'white' }}
+                    startIcon={<AccountCircleIcon />}
+                  >
+                    {user.name}
+                  </Button>
+                  <Button onClick={onLogout} sx={{ color: 'white' }}>
+                    Logout
+                  </Button>
+                </>
               ) : (
                 <Button onClick={onAuthOpen} sx={{ color: 'white' }}>
                   Login
-                </Button>
-              )}
-
-              {user && (
-                <Button onClick={onLogout} sx={{ color: 'white' }}>
-                  Logout
                 </Button>
               )}
 
@@ -125,9 +137,18 @@ const Navbar = ({ onAuthOpen, onToggleTheme, darkMode, user, onLogout }) => {
         onClose={toggleDrawer}
         transitionDuration={300}
       >
-        <Box sx={{ width: 200 }} role="presentation" onClick={toggleDrawer}>
+        <Box sx={{ width: 220 }} role="presentation" onClick={toggleDrawer}>
           <List>
-            {user ? (
+            {user?.role === 'admin' ? (
+              <>
+                <ListItem button onClick={() => navigate('/admin')}>
+                  <ListItemText primary="Admin" />
+                </ListItem>
+                <ListItem button onClick={onLogout}>
+                  <ListItemText primary="Logout" />
+                </ListItem>
+              </>
+            ) : user ? (
               <>
                 <ListItem button onClick={() => navigate('/dashboard')}>
                   <ListItemText primary={user.name} />
