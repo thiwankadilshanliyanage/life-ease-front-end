@@ -1,3 +1,4 @@
+// src/pages/AdminPanel.js
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Box, Typography, Paper, Tabs, Tab, Chip, Table, TableHead, TableRow,
@@ -77,7 +78,6 @@ export default function AdminPanel() {
 
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' });
 
-  const token = useMemo(() => localStorage.getItem('token'), []);
   const user = useMemo(() => {
     const raw = localStorage.getItem('user');
     return raw ? JSON.parse(raw) : null;
@@ -107,7 +107,6 @@ export default function AdminPanel() {
   const gApproved  = useMemo(() => makeGradient(theme, theme.palette.info.main), [theme]);
   const gRejected  = useMemo(() => makeGradient(theme, theme.palette.error.main), [theme]);
 
-  // Surfaces / papers
   const surface = useMemo(
     () => (isDark ? alpha('#0b1220', 0.7) : theme.palette.background.paper),
     [isDark, theme]
@@ -120,7 +119,7 @@ export default function AdminPanel() {
   const fetchStats = async () => {
     setLoadingStats(true);
     try {
-      const res = await getAdminStats(token);
+      const res = await getAdminStats();
       setStats(res.data);
     } catch (e) {
       setSnack({ open: true, message: e.response?.data?.message || 'Failed to load stats', severity: 'error' });
@@ -134,7 +133,7 @@ export default function AdminPanel() {
     setLoadingProviders(true);
     try {
       const filter = tab === 'all' ? undefined : (['pending', 'approved', 'rejected'].includes(tab) ? tab : undefined);
-      const res = await listProviders(token, filter);
+      const res = await listProviders(filter);
       setProviders(res.data.providers || []);
     } catch (e) {
       setSnack({ open: true, message: e.response?.data?.message || 'Failed to load providers', severity: 'error' });
@@ -147,7 +146,7 @@ export default function AdminPanel() {
   const fetchUsers = async (page = 1) => {
     setUsersLoading(true);
     try {
-      const res = await listUsersAdmin(token, {
+      const res = await listUsersAdmin({
         page,
         limit: 10,
         search: usersSearch || undefined,
@@ -176,7 +175,7 @@ export default function AdminPanel() {
 
   const handleApprove = async (id) => {
     try {
-      await approveProvider(token, id);
+      await approveProvider(id);
       setSnack({ open: true, message: 'Approved successfully', severity: 'success' });
       fetchProviders(); fetchStats();
     } catch (e) {
@@ -186,7 +185,7 @@ export default function AdminPanel() {
 
   const handleReject = async (id) => {
     try {
-      await rejectProvider(token, id);
+      await rejectProvider(id);
       setSnack({ open: true, message: 'Rejected successfully', severity: 'info' });
       fetchProviders(); fetchStats();
     } catch (e) {
@@ -205,11 +204,7 @@ export default function AdminPanel() {
           position: 'relative',
         }}
       >
-        <Box
-          sx={{
-            position: 'absolute', inset: 0, background: heroOverlay
-          }}
-        />
+        <Box sx={{ position: 'absolute', inset: 0, background: heroOverlay }} />
         <Box sx={{ position: 'relative' }}>
           <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, letterSpacing: 0.3 }}>
             Admin Panel
@@ -231,44 +226,19 @@ export default function AdminPanel() {
             ) : (
               <>
                 <Grid item xs={12} sm={6} md={3}>
-                  <StatCard
-                    title="Total Users"
-                    value={stats.totalUsers}
-                    icon={<GroupIcon sx={{ fontSize: 120 }} />}
-                    gradient={gUsers}
-                  />
+                  <StatCard title="Total Users" value={stats.totalUsers} icon={<GroupIcon sx={{ fontSize: 120 }} />} gradient={gUsers} />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                  <StatCard
-                    title="Total Providers"
-                    value={stats.totalProviders}
-                    icon={<WorkspacePremiumIcon sx={{ fontSize: 120 }} />}
-                    gradient={gProviders}
-                  />
+                  <StatCard title="Total Providers" value={stats.totalProviders} icon={<WorkspacePremiumIcon sx={{ fontSize: 120 }} />} gradient={gProviders} />
                 </Grid>
                 <Grid item xs={12} sm={4} md={2}>
-                  <StatCard
-                    title="Pending"
-                    value={stats.providersByStatus?.pending || 0}
-                    icon={<PendingActionsIcon sx={{ fontSize: 120 }} />}
-                    gradient={gPending}
-                  />
+                  <StatCard title="Pending" value={stats.providersByStatus?.pending || 0} icon={<PendingActionsIcon sx={{ fontSize: 120 }} />} gradient={gPending} />
                 </Grid>
                 <Grid item xs={12} sm={4} md={2}>
-                  <StatCard
-                    title="Approved"
-                    value={stats.providersByStatus?.approved || 0}
-                    icon={<TaskAltIcon sx={{ fontSize: 120 }} />}
-                    gradient={gApproved}
-                  />
+                  <StatCard title="Approved" value={stats.providersByStatus?.approved || 0} icon={<TaskAltIcon sx={{ fontSize: 120 }} />} gradient={gApproved} />
                 </Grid>
                 <Grid item xs={12} sm={4} md={2}>
-                  <StatCard
-                    title="Rejected"
-                    value={stats.providersByStatus?.rejected || 0}
-                    icon={<BlockIcon sx={{ fontSize: 120 }} />}
-                    gradient={gRejected}
-                  />
+                  <StatCard title="Rejected" value={stats.providersByStatus?.rejected || 0} icon={<BlockIcon sx={{ fontSize: 120 }} />} gradient={gRejected} />
                 </Grid>
               </>
             )}
@@ -330,9 +300,7 @@ export default function AdminPanel() {
                   gap: 1,
                   mb: 2,
                   alignItems: 'center',
-                  '@media (max-width:900px)': {
-                    gridTemplateColumns: '1fr',
-                  }
+                  '@media (max-width:900px)': { gridTemplateColumns: '1fr' }
                 }}
               >
                 <TextField
@@ -340,11 +308,7 @@ export default function AdminPanel() {
                   value={usersSearch}
                   onChange={(e) => setUsersSearch(e.target.value)}
                   size="small"
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start"><SearchIcon /></InputAdornment>
-                    )
-                  }}
+                  InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>) }}
                 />
                 <TextField
                   placeholder="Role (user / service_provider / admin)"
@@ -360,9 +324,7 @@ export default function AdminPanel() {
 
               {/* Users Table */}
               {usersLoading ? (
-                <Box sx={{ py: 6, display: 'flex', justifyContent: 'center' }}>
-                  <CircularProgress />
-                </Box>
+                <Box sx={{ py: 6, display: 'flex', justifyContent: 'center' }}><CircularProgress /></Box>
               ) : users.length === 0 ? (
                 <Typography sx={{ py: 4, textAlign: 'center', opacity: 0.7 }}>No users found.</Typography>
               ) : (
@@ -397,11 +359,7 @@ export default function AdminPanel() {
                   </Box>
 
                   <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
-                    <Pagination
-                      page={usersPage}
-                      count={usersPages}
-                      onChange={(_, p) => fetchUsers(p)}
-                    />
+                    <Pagination page={usersPage} count={usersPages} onChange={(_, p) => fetchUsers(p)} />
                   </Box>
                 </>
               )}
@@ -410,9 +368,7 @@ export default function AdminPanel() {
             <>
               {/* Providers Table (with inline actions) */}
               {loadingProviders ? (
-                <Box sx={{ py: 6, display: 'flex', justifyContent: 'center' }}>
-                  <CircularProgress />
-                </Box>
+                <Box sx={{ py: 6, display: 'flex', justifyContent: 'center' }}><CircularProgress /></Box>
               ) : providers.length === 0 ? (
                 <Typography sx={{ py: 4, textAlign: 'center', opacity: 0.7 }}>No providers for this filter.</Typography>
               ) : (

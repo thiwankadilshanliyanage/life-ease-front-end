@@ -1,18 +1,24 @@
 import React, { useState, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import Navbar from './components/Navbar';
-import Home from './pages/Home';
-import Dashboard from './pages/Dashboard';
-import AdminPanel from './pages/AdminPanel';
-import AuthPage from './components/Auth';
 import { CssBaseline, Snackbar, Alert } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 
-/** Small helper to read location inside App for conditional navbar */
+import Navbar from './components/Navbar';
+import AuthPage from './components/Auth';
+import GlobalLoading from './components/GlobalLoading'; // 👈 NEW
+
+import Home from './pages/Home';
+import Services from './pages/Services';
+import ServiceDetail from './pages/ServiceDetail';
+import Dashboard from './pages/Dashboard';
+import AdminPanel from './pages/AdminPanel';
+import CreateService from './pages/CreateService';
+import MyServices from './pages/MyServices';
+import EditService from './pages/EditService';
+
+/** Layout wrapper so we can hide navbar on admin pages */
 const Layout = ({ children, user, onAuthOpen, onToggleTheme, darkMode, onLogout }) => {
   const location = useLocation();
-
-  // Hide navbar on admin pages
   const hideNavbar = user?.role === 'admin' && location.pathname.startsWith('/admin');
 
   return (
@@ -31,7 +37,7 @@ const Layout = ({ children, user, onAuthOpen, onToggleTheme, darkMode, onLogout 
   );
 };
 
-/** Guards */
+/** Route guards */
 const RequireAdmin = ({ user, children }) => {
   if (!user) return <Navigate to="/" replace />;
   if (user.role !== 'admin') return <Navigate to="/" replace />;
@@ -41,6 +47,12 @@ const RequireAdmin = ({ user, children }) => {
 const RequireNonAdmin = ({ user, children }) => {
   if (!user) return <Navigate to="/" replace />;
   if (user.role === 'admin') return <Navigate to="/admin" replace />;
+  return children;
+};
+
+const RequireProvider = ({ user, children }) => {
+  if (!user) return <Navigate to="/" replace />;
+  if (user.role !== 'service_provider') return <Navigate to="/" replace />;
   return children;
 };
 
@@ -68,22 +80,18 @@ function App() {
 
   const handleAuthOpen = () => setOpenAuth(true);
   const handleAuthClose = () => setOpenAuth(false);
-  const toggleTheme = () => setDarkMode(!darkMode);
+  const toggleTheme = () => setDarkMode((v) => !v);
 
   const handleLogin = (userData) => {
+    // Expecting userData to include: id, name, email, avatar, role, token
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
     localStorage.setItem('token', userData.token);
     setOpenAuth(false);
     setSnackbar({ open: true, message: 'Logged in successfully!', severity: 'success' });
 
-    // Redirect based on role (simple + reliable)
     if (userData.role === 'admin') {
       window.location.href = '/admin';
-    } else {
-      // For users/service providers we usually stay on Home.
-      // If you prefer, you can send them to /dashboard:
-      // window.location.href = '/dashboard';
     }
   };
 
@@ -92,7 +100,6 @@ function App() {
     localStorage.removeItem('user');
     setUser(null);
     setSnackbar({ open: true, message: 'Logged out.', severity: 'info' });
-    // Optional: force to home
     window.location.href = '/';
   };
 
@@ -110,9 +117,38 @@ function App() {
           onLogout={handleLogout}
         >
           <Routes>
+            {/* Public */}
             <Route path="/" element={<Home />} />
+            <Route path="/services" element={<Services />} />
+            <Route path="/services/:id" element={<ServiceDetail onAuthOpen={handleAuthOpen} />} />
 
-            {/* Admin ONLY */}
+            {/* Provider-only */}
+            <Route
+              path="/provider/services"
+              element={
+                <RequireProvider user={user}>
+                  <MyServices />
+                </RequireProvider>
+              }
+            />
+            <Route
+              path="/provider/services/new"
+              element={
+                <RequireProvider user={user}>
+                  <CreateService />
+                </RequireProvider>
+              }
+            />
+            <Route
+              path="/provider/services/:id/edit"
+              element={
+                <RequireProvider user={user}>
+                  <EditService />
+                </RequireProvider>
+              }
+            />
+
+            {/* Admin-only */}
             <Route
               path="/admin"
               element={
@@ -122,7 +158,7 @@ function App() {
               }
             />
 
-            {/* Normal user / service_provider ONLY */}
+            {/* Normal user or provider (not admin) */}
             <Route
               path="/dashboard"
               element={
@@ -136,8 +172,10 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
 
+          {/* Auth modal */}
           <AuthPage open={openAuth} onClose={handleAuthClose} onLogin={handleLogin} />
 
+          {/* Global snackbar */}
           <Snackbar
             open={snackbar.open}
             autoHideDuration={3000}
@@ -149,6 +187,9 @@ function App() {
             </Alert>
           </Snackbar>
         </Layout>
+
+        {/* 👇 Renders above everything while requests are in flight */}
+        <GlobalLoading />
       </Router>
     </ThemeProvider>
   );

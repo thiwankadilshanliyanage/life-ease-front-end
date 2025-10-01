@@ -97,6 +97,7 @@ const AuthPage = ({ open = true, onClose, onLogin, mode = 'login' }) => {
         });
 
         const userData = {
+          id: res.data.user.id,  
           name: res.data.user.name,
           email: res.data.user.email,
           avatar: res.data.user.avatar,

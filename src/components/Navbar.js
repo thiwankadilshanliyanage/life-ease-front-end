@@ -68,6 +68,7 @@ const Navbar = ({ onAuthOpen, onToggleTheme, darkMode, user, onLogout }) => {
                   cursor: 'pointer',
                   '&:hover': { transform: 'scale(1.1)' }
                 }}
+                onClick={() => navigate('/')}
               />
               <Typography
                 variant="h6"
@@ -84,7 +85,6 @@ const Navbar = ({ onAuthOpen, onToggleTheme, darkMode, user, onLogout }) => {
             </Box>
 
             <Box sx={{ display: { xs: 'none', sm: 'flex' }, gap: 1 }}>
-              {/* Admin sees only "Admin" label (no profile button) */}
               {user?.role === 'admin' ? (
                 <>
                   <Button
@@ -99,6 +99,14 @@ const Navbar = ({ onAuthOpen, onToggleTheme, darkMode, user, onLogout }) => {
                 </>
               ) : user ? (
                 <>
+                  {user?.role === 'service_provider' && (
+                    <Button
+                      onClick={() => navigate('/provider/services')}
+                      sx={{ color: 'white' }}
+                    >
+                      My Services
+                    </Button>
+                  )}
                   <Button
                     onClick={() => navigate('/dashboard')}
                     sx={{ color: 'white' }}
@@ -153,6 +161,11 @@ const Navbar = ({ onAuthOpen, onToggleTheme, darkMode, user, onLogout }) => {
                 <ListItem button onClick={() => navigate('/dashboard')}>
                   <ListItemText primary={user.name} />
                 </ListItem>
+                {user?.role === 'service_provider' && (
+                  <ListItem button onClick={() => navigate('/provider/services')}>
+                    <ListItemText primary="My Services" />
+                  </ListItem>
+                )}
                 <ListItem button onClick={onLogout}>
                   <ListItemText primary="Logout" />
                 </ListItem>
